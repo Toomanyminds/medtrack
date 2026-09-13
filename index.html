@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MedTrack</title>
+<meta name="theme-color" content="#1D2B3A">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#FAF7F2;
+    --paper-raised:#FFFFFF;
+    --ink:#1D2B3A;
+    --ink-soft:#5B6B78;
+    --line:#E4DFD3;
+    --teal:#3E6259;
+    --teal-soft:#E7EEEB;
+    --amber:#D9A441;
+    --amber-soft:#FBF1DE;
+    --brick:#C1543C;
+    --brick-soft:#F7E7E2;
+    --radius:14px;
+    --serif: "Fraunces", Georgia, serif;
+    --sans: "Inter", -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  h1,h2,h3{font-family:var(--serif); font-weight:600; margin:0 0 4px;}
+  p{margin:0;}
+  button{font-family:var(--sans); cursor:pointer;}
+  #app{max-width:520px; margin:0 auto; min-height:100%; display:flex; flex-direction:column;}
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    padding:20px 20px 14px; display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom:1px solid var(--line);
+  }
+  .topbar h1{font-size:22px; letter-spacing:-0.01em;}
+  .topbar .sub{font-size:12px; color:var(--ink-soft);}
+
+  /* ---------- Views ---------- */
+  .view{display:none; flex:1; padding:18px 18px 96px; overflow-y:auto;}
+  .view.active{display:block;}
+
+  /* ---------- Gate / setup / signin screens ---------- */
+  .gate{flex:1; display:flex; flex-direction:column; justify-content:center; padding:32px 26px; gap:22px;}
+  .gate .mark{width:52px; height:52px; border-radius:14px; background:var(--ink); display:flex; align-items:center; justify-content:center;}
+  .gate .mark svg{width:26px; height:26px;}
+  .gate h1{font-size:30px; line-height:1.15; max-width:280px;}
+  .gate p.lead{color:var(--ink-soft); font-size:15px; line-height:1.5; max-width:320px;}
+  .field{display:flex; flex-direction:column; gap:6px;}
+  .field label{font-size:12px; font-weight:600; color:var(--ink-soft); text-transform:none;}
+  .field input{
+    font-family:var(--sans); font-size:15px; padding:12px 13px; border-radius:10px;
+    border:1px solid var(--line); background:var(--paper-raised); color:var(--ink);
+  }
+  .field input:focus{outline:2px solid var(--teal); outline-offset:1px;}
+  .field .hint{font-size:12px; color:var(--ink-soft); line-height:1.4;}
+  .field .hint a{color:var(--teal);}
+  .btn{
+    border:none; border-radius:11px; padding:14px 18px; font-size:15px; font-weight:600;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn-primary{background:var(--ink); color:var(--paper);}
+  .btn-primary:active{opacity:0.85;}
+  .btn-primary:disabled{background:#C9C2B2; color:#8A8375; cursor:not-allowed;}
+  .btn-ghost{background:transparent; color:var(--ink-soft); border:1px solid var(--line);}
+  .btn-google{background:#fff; color:#3c4043; border:1px solid var(--line); font-weight:600;}
+  .btn-google img{width:18px; height:18px;}
+  .gate-error{font-size:13px; color:var(--brick); background:var(--brick-soft); padding:10px 12px; border-radius:9px; display:none;}
+
+  /* ---------- Bottom nav ---------- */
+  nav.tabbar{
+    position:fixed; bottom:0; left:0; right:0; background:var(--paper-raised);
+    border-top:1px solid var(--line); display:flex; max-width:520px; margin:0 auto;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav.tabbar button{
+    flex:1; background:none; border:none; padding:11px 4px 9px; display:flex; flex-direction:column;
+    align-items:center; gap:4px; color:var(--ink-soft); font-size:10.5px; font-weight:600;
+  }
+  nav.tabbar button svg{width:21px; height:21px;}
+  nav.tabbar button.active{color:var(--teal);}
+  nav.tabbar button.active svg{stroke:var(--teal);}
+
+  /* ---------- Cards / lists ---------- */
+  .card{background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius); padding:16px;}
+  .stat-row{display:flex; gap:10px; margin-bottom:18px;}
+  .stat{flex:1; background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius); padding:14px;}
+  .stat .n{font-family:var(--serif); font-size:26px; font-weight:600;}
+  .stat .l{font-size:11px; color:var(--ink-soft); margin-top:2px;}
+  .section-title{font-size:13px; font-weight:700; color:var(--ink-soft); margin:22px 0 10px; display:flex; justify-content:space-between; align-items:center;}
+  .chip-row{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{
+    background:var(--teal-soft); color:var(--teal); font-size:12.5px; font-weight:600; padding:7px 13px;
+    border-radius:100px; border:none; white-space:nowrap;
+  }
+  .chip.brick{background:var(--brick-soft); color:var(--brick);}
+  .record{
+    display:flex; gap:12px; align-items:flex-start; padding:13px 4px; border-bottom:1px solid var(--line);
+  }
+  .record:last-child{border-bottom:none;}
+  .record .icon{
+    width:38px; height:38px; border-radius:10px; background:var(--teal-soft); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .record .icon svg{width:18px; height:18px; stroke:var(--teal);}
+  .record .body{flex:1; min-width:0;}
+  .record .title{font-size:14.5px; font-weight:600;}
+  .record .meta{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .record .summary{font-size:12.5px; color:var(--ink-soft); margin-top:4px; line-height:1.4;}
+  .empty{text-align:center; padding:50px 20px; color:var(--ink-soft);}
+  .empty svg{width:40px; height:40px; opacity:0.4; margin-bottom:10px;}
+  .empty p{font-size:13.5px; line-height:1.5;}
+
+  /* ---------- Upload view ---------- */
+  .drop{
+    border:1.5px dashed var(--line); border-radius:16px; padding:34px 20px; text-align:center;
+    display:flex; flex-direction:column; align-items:center; gap:10px; background:var(--paper-raised);
+  }
+  .drop svg{width:30px; height:30px; stroke:var(--teal);}
+  .drop .t{font-weight:600; font-size:14.5px;}
+  .drop .s{font-size:12.5px; color:var(--ink-soft);}
+  .upload-actions{display:flex; gap:10px; margin-top:16px;}
+  .upload-actions .btn{flex:1; font-size:13.5px; padding:12px;}
+  .queue-item{display:flex; align-items:center; gap:12px; padding:13px 4px; border-bottom:1px solid var(--line);}
+  .queue-item:last-child{border-bottom:none;}
+  .queue-item .dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+  .dot.pending{background:var(--amber);}
+  .dot.ok{background:var(--teal);}
+  .dot.fail{background:var(--brick);}
+  .queue-item .body{flex:1; min-width:0;}
+  .queue-item .fn{font-size:13.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .queue-item .st{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .queue-item .override{font-size:11.5px; font-weight:700; color:var(--teal); background:none; border:none; padding:0; margin-top:4px;}
+
+  /* ---------- Trends ---------- */
+  select{
+    width:100%; font-family:var(--sans); font-size:14.5px; padding:12px 13px; border-radius:10px;
+    border:1px solid var(--line); background:var(--paper-raised); color:var(--ink); margin-bottom:16px;
+  }
+  .chart-wrap{background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius); padding:16px 12px; position:relative; height:260px;}
+  .range-legend{display:flex; gap:16px; margin-top:12px; font-size:11.5px; color:var(--ink-soft);}
+  .range-legend span{display:flex; align-items:center; gap:5px;}
+  .range-legend i{width:8px; height:8px; border-radius:2px; display:inline-block;}
+
+  /* ---------- Detail sheet ---------- */
+  .sheet-backdrop{
+    position:fixed; inset:0; background:rgba(29,43,58,0.42); display:none; z-index:40;
+    align-items:flex-end; justify-content:center;
+  }
+  .sheet-backdrop.active{display:flex;}
+  .sheet{
+    background:var(--paper); width:100%; max-width:520px; border-radius:20px 20px 0 0;
+    max-height:82vh; overflow-y:auto; padding:22px 20px calc(28px + env(safe-area-inset-bottom));
+  }
+  .sheet .handle{width:36px; height:4px; background:var(--line); border-radius:4px; margin:0 auto 16px;}
+  .sheet dl{margin:14px 0; display:grid; grid-template-columns:auto 1fr; gap:7px 14px; font-size:13.5px;}
+  .sheet dt{color:var(--ink-soft);}
+  .sheet dd{margin:0; font-weight:500;}
+  .sheet .panel-table{width:100%; border-collapse:collapse; font-size:13px; margin-top:10px;}
+  .sheet .panel-table th{text-align:left; color:var(--ink-soft); font-weight:600; font-size:11px; padding:6px 4px; border-bottom:1px solid var(--line);}
+  .sheet .panel-table td{padding:8px 4px; border-bottom:1px solid var(--line);}
+  .flag-high{color:var(--brick); font-weight:700;}
+  .flag-low{color:var(--amber); font-weight:700;}
+
+  /* ---------- Toast ---------- */
+  #toast{
+    position:fixed; left:50%; bottom:90px; transform:translateX(-50%) translateY(10px); opacity:0;
+    background:var(--ink); color:var(--paper); font-size:13px; padding:11px 18px; border-radius:100px;
+    transition:all .25s ease; z-index:60; pointer-events:none; max-width:80%; text-align:center;
+  }
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  .settings-row{display:flex; align-items:center; justify-content:space-between; padding:15px 4px; border-bottom:1px solid var(--line);}
+  .settings-row:last-child{border-bottom:none;}
+  .settings-row .t{font-size:14.5px; font-weight:500;}
+  .settings-row .s{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .spinner{width:16px; height:16px; border-radius:50%; border:2px solid rgba(0,0,0,0.15); border-top-color:var(--teal); animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ===================== SETUP GATE ===================== -->
+  <div class="gate" id="gate-setup">
+    <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#FAF7F2" stroke-width="2" stroke-linecap="round"><path d="M12 4v16M4 12h16"/></svg></div>
+    <div>
+      <h1>Your records, kept straight.</h1>
+      <p class="lead">MedTrack files every report, prescription and photo in your own Google Drive, reads them with Gemini, and lines up your blood work over time. Nothing leaves your account.</p>
+    </div>
+    <div class="field">
+      <label for="in-client-id">Google OAuth client ID</label>
+      <input id="in-client-id" placeholder="xxxxx.apps.googleusercontent.com" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <p class="hint">From your Google Cloud project — see the README that shipped with this app for the exact steps.</p>
+    </div>
+    <div class="field">
+      <label for="in-gemini-key">Gemini API key</label>
+      <input id="in-gemini-key" placeholder="AIza..." autocomplete="off" autocapitalize="off" spellcheck="false">
+      <p class="hint">From <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> — free tier is enough for personal use.</p>
+    </div>
+    <button class="btn btn-primary" id="btn-save-setup">Save &amp; continue</button>
+  </div>
+
+  <!-- ===================== SIGN-IN GATE ===================== -->
+  <div class="gate" id="gate-signin" style="display:none;">
+    <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#FAF7F2" stroke-width="2" stroke-linecap="round"><path d="M12 4v16M4 12h16"/></svg></div>
+    <div>
+      <h1>Sign in to your Drive</h1>
+      <p class="lead">MedTrack only ever touches a single "MedTrack" folder it creates in your Drive — nothing else in your account is visible to it.</p>
+    </div>
+    <p class="gate-error" id="signin-error"></p>
+    <button class="btn btn-google" id="btn-google-signin">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.3 29.3 35 24 35c-6.1 0-11-4.9-11-11s4.9-11 11-11c2.8 0 5.3 1 7.3 2.7l6-6C33.9 6.5 29.2 4.5 24 4.5 12.7 4.5 3.5 13.7 3.5 25S12.7 45.5 24 45.5 44.5 36.3 44.5 25c0-1.6-.2-3.1-.9-4.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c2.8 0 5.3 1 7.3 2.7l6-6C33.9 6.5 29.2 4.5 24 4.5c-7.7 0-14.4 4.3-17.7 10.2z"/><path fill="#4CAF50" d="M24 45.5c5.1 0 9.8-1.9 13.3-5.1l-6.2-5.2C29.2 36.6 26.7 37.5 24 37.5c-5.3 0-9.7-3.4-11.3-8.1l-6.5 5C9.5 41.1 16.2 45.5 24 45.5z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.2 5.2C40.8 35.9 44.5 31 44.5 25c0-1.6-.2-3.1-.9-4.5z"/></svg>
+      Sign in with Google
+    </button>
+    <button class="btn btn-ghost" id="btn-edit-setup">Edit setup</button>
+  </div>
+
+  <!-- ===================== MAIN APP ===================== -->
+  <div id="main-app" style="display:none; flex:1; display:none; flex-direction:column;">
+
+    <div class="topbar">
+      <div>
+        <h1 id="topbar-title">Home</h1>
+        <div class="sub" id="topbar-sub">—</div>
+      </div>
+      <div class="sub" id="topbar-status">●</div>
+    </div>
+
+    <!-- HOME -->
+    <div class="view active" id="view-home">
+      <div class="stat-row">
+        <div class="stat"><div class="n" id="stat-total">0</div><div class="l">records</div></div>
+        <div class="stat"><div class="n" id="stat-issues">0</div><div class="l">tracked issues</div></div>
+        <div class="stat"><div class="n" id="stat-blood">0</div><div class="l">blood analytes</div></div>
+      </div>
+
+      <div class="section-title">Issues</div>
+      <div class="chip-row" id="home-chips"></div>
+
+      <div class="section-title">Recent</div>
+      <div class="card" id="home-recent"></div>
+    </div>
+
+    <!-- UPLOAD -->
+    <div class="view" id="view-upload">
+      <div class="drop" id="drop-zone">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>
+        <div class="t">Add a record</div>
+        <div class="s">Reports, prescriptions, scans, or a photo of a symptom</div>
+      </div>
+      <div class="upload-actions">
+        <button class="btn btn-primary" id="btn-pick-file">Choose files</button>
+        <button class="btn btn-ghost" id="btn-pick-camera">Camera</button>
+      </div>
+      <input type="file" id="file-input" multiple hidden accept="image/*,application/pdf,.doc,.docx,.txt,.csv">
+      <input type="file" id="camera-input" hidden accept="image/*" capture="environment">
+
+      <div class="section-title" id="queue-title" style="display:none;">Processing</div>
+      <div class="card" id="queue-list" style="display:none;"></div>
+    </div>
+
+    <!-- RECORDS -->
+    <div class="view" id="view-records">
+      <select id="records-filter"><option value="__all">All issues</option></select>
+      <div class="card" id="records-list"></div>
+    </div>
+
+    <!-- TRENDS -->
+    <div class="view" id="view-trends">
+      <select id="trend-analyte"></select>
+      <div id="trend-empty" class="empty" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
+        <p>Once you upload a blood report, its values will show up here as a trend line.</p>
+      </div>
+      <div class="chart-wrap" id="trend-chart-wrap" style="display:none;">
+        <canvas id="trend-canvas"></canvas>
+      </div>
+      <div class="range-legend" id="trend-legend" style="display:none;">
+        <span><i style="background:var(--teal)"></i>your value</span>
+        <span><i style="background:var(--teal-soft); border:1px solid var(--line);"></i>reference range</span>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="view" id="view-settings">
+      <div class="card">
+        <div class="settings-row"><div><div class="t">Signed in as</div><div class="s" id="settings-account">—</div></div></div>
+        <div class="settings-row"><div><div class="t">Drive folder</div><div class="s" id="settings-folder">MedTrack</div></div><button class="btn btn-ghost" id="btn-open-drive" style="padding:8px 12px; font-size:12px;">Open</button></div>
+        <div class="settings-row"><div><div class="t">Re-sync index</div><div class="s">Rebuild the local list from Drive</div></div><button class="btn btn-ghost" id="btn-resync" style="padding:8px 12px; font-size:12px;">Sync</button></div>
+        <div class="settings-row"><div><div class="t">Sign out</div></div><button class="btn btn-ghost" id="btn-signout" style="padding:8px 12px; font-size:12px;">Sign out</button></div>
+        <div class="settings-row"><div><div class="t">Edit API keys</div></div><button class="btn btn-ghost" id="btn-edit-keys" style="padding:8px 12px; font-size:12px;">Edit</button></div>
+      </div>
+    </div>
+
+    <nav class="tabbar">
+      <button data-view="home" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>
+        Home
+      </button>
+      <button data-view="records">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4zM8 9h8M8 13h8M8 17h4"/></svg>
+        Records
+      </button>
+      <button data-view="upload">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+        Add
+      </button>
+      <button data-view="trends">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M21 7v5h-5"/></svg>
+        Trends
+      </button>
+      <button data-view="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
+        Settings
+      </button>
+    </nav>
+  </div>
+
+</div>
+
+<!-- Detail sheet -->
+<div class="sheet-backdrop" id="sheet-backdrop">
+  <div class="sheet" id="sheet-content"></div>
+</div>
+
+<div id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
